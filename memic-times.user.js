@@ -1,10 +1,11 @@
 // ==UserScript==
 // @name         미밐 정확한 시간 표시
 // @namespace    https://memic.at/
-// @version      1.0
+// @version      1.1
 // @description  Converting Relative Time to Correct Date/Time
 // @match        *://memic.at/*
 // @grant        none
+// @author       NoonDaL
 // ==/UserScript==
 
 (function() {
@@ -13,6 +14,7 @@
     function parseRelativeTime(text) {
         const now = new Date();
         const d = new Date(now);
+
 
         if (text.includes('방금')) return now;
 
@@ -57,7 +59,7 @@
 
     function updateTimestamps() {
         // Find all timed elements
-        const timeElems = document.querySelectorAll('td.text-right, .text-right'); // Modifiable
+        const timeElems = document.querySelectorAll('td.text-right, .text-right, time.typo-body-sm'); // Modifiable
         timeElems.forEach(el => {
             const original = el.textContent.trim();
             const parsed = parseRelativeTime(original);
