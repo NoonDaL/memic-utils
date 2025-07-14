@@ -1,9 +1,10 @@
 // ==UserScript==
 // @name         미밐 정확한 시간 표시
 // @namespace    https://memic.at/
-// @version      1.1
+// @version      1.2
 // @description  Converting Relative Time to Correct Date/Time
 // @match        *://memic.at/*
+// @match        *://shelter.id/*
 // @grant        none
 // @author       NoonDaL
 // ==/UserScript==
