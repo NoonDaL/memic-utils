@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Memic 카테고리 색상 강조
+// @name         미밐 카테고리 색상 강조
 // @namespace    http://memic.at/
-// @version      1.0
+// @version      1.1
 // @description  Apply color to post tag and left sidebar categories
 // @match        https://memic.at/*
 // @grant        none
