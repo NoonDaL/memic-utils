@@ -4,6 +4,7 @@
 // @version      1.1
 // @description  Apply color to post tag and left sidebar categories
 // @match        https://memic.at/*
+// @match        https://shelter.id/*
 // @grant        none
 // @author       NoonDaL
 // ==/UserScript==
