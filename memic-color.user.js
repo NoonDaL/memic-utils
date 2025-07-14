@@ -63,7 +63,22 @@
         });
     }
 
+        // 게시글의 span.bg-background 말머리에도 색상 배경 적용
+    function colorizePostSpanTags() {
+        const spans = document.querySelectorAll('span.bg-background');
+        spans.forEach(span => {
+            const text = span.textContent.trim();
+            const color = categoryColors[text];
+            if (color) {
+                span.style.backgroundColor = color;
+                span.style.color = '#ffffff';
+                span.style.fontWeight = 'bold';
+            }
+        });
+    }
+
     function applyAll() {
+        colorizePostSpanTags();
         colorizePostPrefixes();
         colorizeSidebarCategories();
     }
