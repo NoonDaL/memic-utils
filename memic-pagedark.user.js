@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Shelter 게시판 개선 스크립트
+// @name         Memic 게시판 개선 스크립트(다크 모드)
 // @namespace    http://memic.at/
-// @version      0.2
+// @version      0.3
 // @description  페이지네이션, 시간 표시, 카테고리 색깔 구분 통합
 // @match        *://memic.at/*
 // @match        *://shelter.id/*
@@ -88,7 +88,7 @@
         sessionStorage.setItem('lastPage', currentPage);
         sessionStorage.setItem('lastScroll', scrollPosition);
 
-        // Change to page move method
+        // page move
         window.location.href = `https://memic.at/articles/${article.id}`;
       });
       container.appendChild(div);
@@ -185,7 +185,7 @@
     clearArticles(container);
     renderArticles(container, list);
 
-    // Remove an existing PageNation bar and create a new one
+    // Remove existing pagination bars and create new ones
     clearPaginationBars();
     const top = createPaginationBar();
     const bottom = createPaginationBar();
@@ -198,11 +198,11 @@
     if (savedScroll) window.scrollTo(0, parseInt(savedScroll));
   }
 
-  // Function for backward processing (when you return to the post list page)
+  // Back button handling function (when returning to article list page)
   window.addEventListener('popstate', async (event) => {
     if (!container) return;
 
-    // Restore saved pages and scroll locations
+    // Restore saved page and scroll position
     const savedPage = sessionStorage.getItem('lastPage');
     const savedScroll = sessionStorage.getItem('lastScroll');
 
@@ -212,10 +212,10 @@
       clearArticles(container);
       renderArticles(container, list);
 
-      // Remove an existing PageNation Bar
+      // Remove existing pagination bars
       clearPaginationBars();
 
-      // Create a new PageNation Bar
+      // Create new pagination bars
       const top = createPaginationBar();
       const bottom = createPaginationBar();
       container.parentElement.insertBefore(top, container);
@@ -229,11 +229,238 @@
     }
   });
 
+  // Image zoom/scale feature
+  function addImageZoomFeature() {
+    // Block original image modal and create new modal
+    document.addEventListener('click', function(e) {
+      if (e.target.tagName === 'IMG' && e.target.src && !e.target.closest('.userscript-zoom-modal')) {
+        // Check if the image is within article content or comment area
+        const isInArticleContent = e.target.closest('app-article-content, .article-content, [class*="article"], [class*="content"]');
+        const isInCommentArea = e.target.closest('app-comment, .comment, [class*="comment"], [class*="reply"]');
+
+        // Only proceed if image is in article content or comment area
+        if (isInArticleContent || isInCommentArea) {
+          e.preventDefault();
+          e.stopPropagation();
+          e.stopImmediatePropagation();
+
+          // Slight delay to prevent original modal creation
+          setTimeout(() => {
+            // Remove original site modals
+            const originalModals = document.querySelectorAll('[class*="modal"], [class*="overlay"], [class*="popup"]');
+            originalModals.forEach(modal => {
+              if (modal.style.zIndex && parseInt(modal.style.zIndex) > 1000) {
+                modal.remove();
+              }
+            });
+
+            showImageZoomModal(e.target.src);
+          }, 10);
+        }
+      }
+    }, true); // Execute in capture phase
+  }
+
+  function showImageZoomModal(imageSrc) {
+    // Remove all existing modals (including original site modals)
+    const existingModals = document.querySelectorAll('.userscript-zoom-modal, [class*="modal"], [class*="overlay"], [class*="popup"]');
+    existingModals.forEach(modal => {
+      if (modal.style.zIndex && parseInt(modal.style.zIndex) > 100) {
+        modal.remove();
+      }
+    });
+
+    // Create modal container
+    const modal = document.createElement('div');
+    modal.className = 'userscript-zoom-modal';
+    modal.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.9);
+      z-index: 99999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: zoom-out;
+    `;
+
+    // Image container
+    const imageContainer = document.createElement('div');
+    imageContainer.style.cssText = `
+      position: relative;
+      width: 90vw;
+      height: 90vh;
+      overflow: hidden;
+      cursor: grab;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    `;
+
+    // Image element
+    const img = document.createElement('img');
+    img.src = imageSrc;
+    img.style.cssText = `
+      transition: transform 0.1s ease;
+      transform-origin: center center;
+      display: block;
+      pointer-events: none;
+    `;
+
+    // Close button
+    const closeBtn = document.createElement('button');
+    closeBtn.innerHTML = '×';
+    closeBtn.style.cssText = `
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: rgba(255, 255, 255, 0.8);
+      border: none;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      font-size: 24px;
+      cursor: pointer;
+      z-index: 100000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    `;
+
+    // Zoom/scale state variables
+    let scale = 1;
+    let initialScale = 1;
+    let isDragging = false;
+    let startX = 0;
+    let startY = 0;
+    let translateX = 0;
+    let translateY = 0;
+
+    // Calculate initial scale to fit image in container
+    function calculateInitialScale() {
+      const containerWidth = imageContainer.clientWidth;
+      const containerHeight = imageContainer.clientHeight;
+      const imageWidth = img.naturalWidth;
+      const imageHeight = img.naturalHeight;
+
+      if (imageWidth && imageHeight) {
+        const scaleX = containerWidth / imageWidth;
+        const scaleY = containerHeight / imageHeight;
+        initialScale = Math.min(scaleX, scaleY, 1); // Don't scale up initially
+        scale = initialScale;
+      }
+    }
+
+    // Update transform with proper scaling
+    function updateTransform() {
+      img.style.transform = `scale(${scale}) translate(${translateX}px, ${translateY}px)`;
+    }
+
+    // Wheel event (zoom in/out)
+    imageContainer.addEventListener('wheel', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+
+      const delta = e.deltaY > 0 ? -0.1 : 0.1;
+      const newScale = Math.max(initialScale * 0.1, Math.min(5, scale + delta));
+
+      if (newScale !== scale) {
+        // Get mouse position relative to image container
+        const rect = imageContainer.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left - rect.width / 2;
+        const mouseY = e.clientY - rect.top - rect.height / 2;
+
+        // Calculate zoom center offset
+        const scaleRatio = newScale / scale;
+        translateX = mouseX - (mouseX - translateX) * scaleRatio;
+        translateY = mouseY - (mouseY - translateY) * scaleRatio;
+
+        scale = newScale;
+
+        // Reset position when back to initial scale
+        if (scale === initialScale) {
+          translateX = 0;
+          translateY = 0;
+        }
+
+        updateTransform();
+      }
+    });
+
+    // Start dragging
+    imageContainer.addEventListener('mousedown', function(e) {
+      if (scale > initialScale) {
+        isDragging = true;
+        startX = e.clientX - translateX;
+        startY = e.clientY - translateY;
+        imageContainer.style.cursor = 'grabbing';
+        e.preventDefault();
+      }
+    });
+
+    // During dragging
+    document.addEventListener('mousemove', function(e) {
+      if (isDragging) {
+        translateX = e.clientX - startX;
+        translateY = e.clientY - startY;
+        updateTransform();
+      }
+    });
+
+    // End dragging
+    document.addEventListener('mouseup', function() {
+      if (isDragging) {
+        isDragging = false;
+        imageContainer.style.cursor = scale > initialScale ? 'grab' : 'zoom-out';
+      }
+    });
+
+    // Close modal
+    function closeModal() {
+      modal.remove();
+    }
+
+    // Event listeners
+    closeBtn.addEventListener('click', closeModal);
+    modal.addEventListener('click', function(e) {
+      if (e.target === modal) {
+        closeModal();
+      }
+    });
+
+    // Close with ESC key
+    const escHandler = function(e) {
+      if (e.key === 'Escape') {
+        closeModal();
+        document.removeEventListener('keydown', escHandler);
+      }
+    };
+    document.addEventListener('keydown', escHandler);
+
+    // Assemble elements
+    imageContainer.appendChild(img);
+    modal.appendChild(imageContainer);
+    modal.appendChild(closeBtn);
+    document.body.appendChild(modal);
+
+    // Initial setup after image loads
+    img.onload = function() {
+      calculateInitialScale();
+      updateTransform();
+    };
+  }
+
   window.addEventListener('pageshow', event => {
     if (event.persisted) {
       runMain();
     }
   });
+
+  // Initialize image zoom feature
+  addImageZoomFeature();
 
   observeAndInit();
 })();
