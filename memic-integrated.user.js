@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Shelter 게시판 개선 스크립트
 // @namespace    http://memic.at/
-// @version      0.1
+// @version      0.2
 // @description  페이지네이션, 시간 표시, 카테고리 색깔 구분 통합
 // @match        *://memic.at/*
 // @match        *://shelter.id/*
