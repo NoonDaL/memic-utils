@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Shelter 게시판 개선 스크립트
 // @namespace    http://memic.at/
-// @version      0.1
+// @version      0.2
 // @description  페이지네이션, 시간 표시, 카테고리 색깔 구분 통합
 // @match        *://memic.at/*
 // @match        *://shelter.id/*
@@ -82,71 +82,17 @@
           <div style="color:#888;">${created}</div>
         </div>`;
 
-      div.addEventListener('click', async () => {
+      div.addEventListener('click', () => {
         localStorage.setItem('viewed-' + article.id, '1');
         scrollPosition = window.scrollY; // Save current scroll position
         sessionStorage.setItem('lastPage', currentPage);
         sessionStorage.setItem('lastScroll', scrollPosition);
-        history.pushState({ page: currentPage, id: article.id }, '', `/articles/${article.id}`);
-        await showArticle(article.id); // Load article dynamically
+
+        // Change to page move method
+        window.location.href = `https://memic.at/articles/${article.id}`;
       });
       container.appendChild(div);
     });
-  }
-
-  async function showArticle(articleId) {
-    const articleContainer = document.createElement('div');
-    articleContainer.id = 'dynamic-article';
-    articleContainer.style.position = 'fixed';
-    articleContainer.style.top = '0';
-    articleContainer.style.left = '0';
-    articleContainer.style.width = '100%';
-    articleContainer.style.height = '100%';
-    articleContainer.style.background = 'rgba(0,0,0,0.8)';
-    articleContainer.style.zIndex = '1000';
-    articleContainer.style.display = 'flex';
-    articleContainer.style.alignItems = 'center';
-    articleContainer.style.justifyContent = 'center';
-
-    try {
-      const res = await fetch(`https://memic.at/articles/${articleId}`);
-      const html = await res.text();
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(html, 'text/html');
-      const content = doc.querySelector('.article-content') || doc.body;
-      const articleDiv = document.createElement('div');
-      articleDiv.style.background = '#1a1a1a';
-      articleDiv.style.padding = '20px';
-      articleDiv.style.borderRadius = '5px';
-      articleDiv.style.maxHeight = '80vh';
-      articleDiv.style.overflowY = 'auto';
-      articleDiv.style.color = '#e0e0e0';
-      articleDiv.appendChild(content);
-      articleContainer.appendChild(articleDiv);
-
-      const closeBtn = document.createElement('button');
-      closeBtn.textContent = '닫기';
-      closeBtn.style.position = 'absolute';
-      closeBtn.style.top = '10px';
-      closeBtn.style.right = '10px';
-      closeBtn.style.padding = '5px 10px';
-      closeBtn.style.background = '#ff4444';
-      closeBtn.style.color = '#fff';
-      closeBtn.style.border = 'none';
-      closeBtn.style.borderRadius = '3px';
-      closeBtn.style.cursor = 'pointer';
-      closeBtn.addEventListener('click', () => {
-        document.body.removeChild(articleContainer);
-        history.back();
-      });
-      articleDiv.appendChild(closeBtn);
-
-      document.body.appendChild(articleContainer);
-    } catch (e) {
-      console.error('Failed to load article:', e);
-      articleContainer.innerHTML = '<div style="color:#fff;">게시글을 불러올 수 없습니다.</div>';
-      document.body.appendChild(articleContainer);
-    }
   }
 
   async function loadPagesSequentially(idx) {
@@ -158,6 +104,10 @@
       last = page.at(-1).id;
     }
     return res;
+  }
+
+  function clearPaginationBars() {
+    document.querySelectorAll('.userscript-pagination').forEach(bar => bar.remove());
   }
 
   function clearArticles(c) {
@@ -234,28 +184,49 @@
     const list = await loadPagesSequentially(currentPage);
     clearArticles(container);
     renderArticles(container, list);
+
+    // Remove an existing PageNation bar and create a new one
+    clearPaginationBars();
     const top = createPaginationBar();
     const bottom = createPaginationBar();
     container.parentElement.insertBefore(top, container);
     container.parentElement.appendChild(bottom);
+
     preventScroll();
     // Restore scroll position if saved
     const savedScroll = sessionStorage.getItem('lastScroll');
     if (savedScroll) window.scrollTo(0, parseInt(savedScroll));
   }
 
+  // Function for backward processing (when you return to the post list page)
   window.addEventListener('popstate', async (event) => {
-    if (!container || !event.state) return;
-    currentPage = event.state.page || 0;
-    scrollPosition = sessionStorage.getItem('lastScroll') || 0;
-    const list = await loadPagesSequentially(currentPage);
-    clearArticles(container);
-    renderArticles(container, list);
-    syncPaginationBars();
-    window.scrollTo(0, scrollPosition); // Restore scroll position
-    // Clean up dynamic article if present
-    const articleContainer = document.getElementById('dynamic-article');
-    if (articleContainer) document.body.removeChild(articleContainer);
+    if (!container) return;
+
+    // Restore saved pages and scroll locations
+    const savedPage = sessionStorage.getItem('lastPage');
+    const savedScroll = sessionStorage.getItem('lastScroll');
+
+    if (savedPage) {
+      currentPage = parseInt(savedPage);
+      const list = await loadPagesSequentially(currentPage);
+      clearArticles(container);
+      renderArticles(container, list);
+
+      // Remove an existing PageNation Bar
+      clearPaginationBars();
+
+      // Create a new PageNation Bar
+      const top = createPaginationBar();
+      const bottom = createPaginationBar();
+      container.parentElement.insertBefore(top, container);
+      container.parentElement.appendChild(bottom);
+
+      if (savedScroll) {
+        setTimeout(() => {
+          window.scrollTo(0, parseInt(savedScroll));
+        }, 100);
+      }
+    }
   });
 
   window.addEventListener('pageshow', event => {
