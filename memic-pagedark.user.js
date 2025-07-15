@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         Memic 게시판 개선 스크립트(다크 모드) - 개발 버전
+// @name         Memic 게시판 개선 스크립트(다크 모드)
 // @namespace    http://memic.at/
 // @version      0.3.1
 // @description  페이지네이션, 시간 표시, 카테고리 색깔 구분 통합
