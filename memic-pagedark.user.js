@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Memic 게시판 개선 스크립트(다크 모드)
 // @namespace    http://memic.at/
-// @version      0.3
+// @version      0.3.1
 // @description  페이지네이션, 시간 표시, 카테고리 색깔 구분 통합
 // @match        *://memic.at/*
 // @match        *://shelter.id/*
@@ -234,6 +234,11 @@
     // Block original image modal and create new modal
     document.addEventListener('click', function(e) {
       if (e.target.tagName === 'IMG' && e.target.src && !e.target.closest('.userscript-zoom-modal')) {
+        // 이모티콘 제외 - alt 속성이 "이모티콘 아이템"인 경우 제외
+        if (e.target.alt === '이모티콘 아이템') {
+          return;
+        }
+        
         // Check if the image is within article content or comment area
         const isInArticleContent = e.target.closest('app-article-content, .article-content, [class*="article"], [class*="content"]');
         const isInCommentArea = e.target.closest('app-comment, .comment, [class*="comment"], [class*="reply"]');
