@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Memic 게시판 개선 스크립트(라이트 모드)
 // @namespace    http://memic.at/
-// @version      0.3.2
+// @version      0.3.3
 // @description  페이지네이션, 시간 표시, 카테고리 색깔 구분 통합 (1열 표시, 읽은 게시글 개선)
 // @match        *://memic.at/*
 // @match        *://shelter.id/*
@@ -174,7 +174,7 @@
         cursor: pointer !important;
         border-radius: 6px !important;
         transition: all 0.2s ease !important;
-        border: 1px solid !important;
+        border: none !important;
       `;
 
       // Distinguish between read and non-read posts
