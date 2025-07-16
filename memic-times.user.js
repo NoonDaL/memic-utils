@@ -17,7 +17,11 @@
     style.textContent = `
         .fixed-time-format {
             font-size: inherit !important;
-            font-family: inherit !important;
+            font-family: 'SUIT', 'Apple SD Gothic Neo', 'Noto Sans KR', 'sans-serif' !important;
+            white-space: nowrap;
+            display: inline-block;
+            text-align: right;
+            min-width: 140px;
         }
     `;
     document.head.appendChild(style);
