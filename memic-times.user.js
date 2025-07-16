@@ -1,21 +1,19 @@
 // ==UserScript==
 // @name         미밐 정확한 시간 표시
 // @namespace    https://memic.at/
-// @version      1.2
+// @version      1.2.1
 // @description  Converting Relative Time to Correct Date/Time
 // @match        *://memic.at/*
 // @match        *://shelter.id/*
 // @grant        none
 // @author       NoonDaL
 // ==/UserScript==
-
 (function() {
     'use strict';
 
     function parseRelativeTime(text) {
         const now = new Date();
         const d = new Date(now);
-
 
         if (text.includes('방금')) return now;
 
@@ -32,12 +30,11 @@
             d.setDate(d.getDate() - 1);
         } else if (text.includes('그저께')) {
             d.setDate(d.getDate() - 2);
-        } else if (text.includes('전')) {
-            // Ex: 3일 전
+        } else if (text.includes('일 전')) {
             const day = parseInt(text);
             d.setDate(d.getDate() - day);
         } else if (/^\d{1,2}:\d{2}$/.test(text)) {
-            // Ex: "14:02" → 오늘 날짜 + 시간
+            // Ex: "14:02" → Today's date + time
             const [h, m] = text.split(':').map(Number);
             d.setHours(h);
             d.setMinutes(m);
@@ -45,7 +42,6 @@
         } else {
             return null; // unknown format
         }
-
         return d;
     }
 
@@ -59,27 +55,65 @@
     }
 
     function updateTimestamps() {
-        // Find all timed elements
-        const timeElems = document.querySelectorAll('td.text-right, .text-right, time.typo-body-sm'); // Modifiable
-        timeElems.forEach(el => {
-            const original = el.textContent.trim();
-            const parsed = parseRelativeTime(original);
-            if (parsed) {
-                el.textContent = formatDate(parsed);
-                el.title = original; // Keep original as Title
-            }
+        // Add new selectors - tailor to the structure shown in the image
+        const timeSelectors = [
+            'td.text-right',
+            '.text-right',
+            'time.typo-body-sm',
+            'time[datetime]',  // Time tag with datetime property
+            '.typo-body-sm',   // Select by class name only
+            'time',            // All time tags
+            '.time',           // time class
+            '[class*="time"]'  // Classes with time
+        ];
+
+        timeSelectors.forEach(selector => {
+            const timeElems = document.querySelectorAll(selector);
+            timeElems.forEach(el => {
+                // Skip elements that have already been processed
+                if (el.hasAttribute('data-time-converted')) return;
+
+                const original = el.textContent.trim();
+
+                // Skip blank text or already converted forms
+                if (!original || original.match(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/)) return;
+
+                const parsed = parseRelativeTime(original);
+                if (parsed) {
+                    el.textContent = formatDate(parsed);
+                    el.title = original; // Keep original as Title
+                    el.style.fontSize = '0.75em';
+                    el.setAttribute('data-time-converted', 'true'); // Show Processing Completed
+                }
+            });
         });
     }
 
-    // Initial Run
+    // Initial Run - Slight delay after page loading
     setTimeout(updateTimestamps, 1500);
 
-    // If it's a bulletin board page, it can also be dynamically detected
-    const observer = new MutationObserver(() => {
-        updateTimestamps();
+    // For dynamic content detection, MutationObserver
+    const observer = new MutationObserver((mutations) => {
+        let shouldUpdate = false;
+        mutations.forEach(mutation => {
+            if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+                // Update only when new nodes are added
+                shouldUpdate = true;
+            }
+        });
+
+        if (shouldUpdate) {
+            setTimeout(updateTimestamps, 100); // Update after slight delay
+        }
     });
+
     observer.observe(document.body, {
         childList: true,
         subtree: true
+    });
+
+    // Update even when focused on the page (when you return from another tab)
+    window.addEventListener('focus', () => {
+        setTimeout(updateTimestamps, 500);
     });
 })();
