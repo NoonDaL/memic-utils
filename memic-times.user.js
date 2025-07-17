@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         미밐 정확한 시간 표시
 // @namespace    https://memic.at/
-// @version      1.2
-// @description  Converting Relative Time to Correct Date/Time
+// @version      1.2.2
+// @description  Convert relative time to fixed absolute time with uniform font size
 // @match        *://memic.at/*
 // @match        *://shelter.id/*
 // @grant        none
@@ -12,10 +12,23 @@
 (function() {
     'use strict';
 
+    // 1. 공통 스타일 삽입 (한 번만)
+    const style = document.createElement('style');
+    style.textContent = `
+        .fixed-time-format {
+            font-size: inherit !important;
+            font-family: 'SUIT', 'Apple SD Gothic Neo', 'Noto Sans KR', 'sans-serif' !important;
+            white-space: nowrap;
+            display: inline-block;
+            text-align: right;
+            min-width: 140px;
+        }
+    `;
+    document.head.appendChild(style);
+
     function parseRelativeTime(text) {
         const now = new Date();
         const d = new Date(now);
-
 
         if (text.includes('방금')) return now;
 
@@ -32,20 +45,17 @@
             d.setDate(d.getDate() - 1);
         } else if (text.includes('그저께')) {
             d.setDate(d.getDate() - 2);
-        } else if (text.includes('전')) {
-            // Ex: 3일 전
+        } else if (text.includes('일 전')) {
             const day = parseInt(text);
             d.setDate(d.getDate() - day);
         } else if (/^\d{1,2}:\d{2}$/.test(text)) {
-            // Ex: "14:02" → 오늘 날짜 + 시간
             const [h, m] = text.split(':').map(Number);
             d.setHours(h);
             d.setMinutes(m);
             d.setSeconds(0);
         } else {
-            return null; // unknown format
+            return null;
         }
-
         return d;
     }
 
@@ -59,27 +69,65 @@
     }
 
     function updateTimestamps() {
-        // Find all timed elements
-        const timeElems = document.querySelectorAll('td.text-right, .text-right, time.typo-body-sm'); // Modifiable
-        timeElems.forEach(el => {
-            const original = el.textContent.trim();
-            const parsed = parseRelativeTime(original);
-            if (parsed) {
-                el.textContent = formatDate(parsed);
-                el.title = original; // Keep original as Title
-            }
+        const timeSelectors = [
+            'td.text-right',
+            '.text-right',
+            'time.typo-body-sm',
+            'time[datetime]',
+            '.typo-body-sm',
+            'time',
+            '.time',
+            '[class*="time"]'
+        ];
+
+        timeSelectors.forEach(selector => {
+            const timeElems = document.querySelectorAll(selector);
+            timeElems.forEach(el => {
+                if (el.hasAttribute('data-time-converted')) return;
+
+                const original = el.textContent.trim();
+                if (!original || original.match(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/)) return;
+
+                let parsed = null;
+
+                if (el.hasAttribute('datetime')) {
+                    const datetime = el.getAttribute('datetime');
+                    parsed = new Date(datetime);
+                } else {
+                    parsed = parseRelativeTime(original);
+                }
+
+                if (parsed && !isNaN(parsed.getTime())) {
+                    el.textContent = formatDate(parsed);
+                    el.title = original;
+                    el.classList.add('fixed-time-format');
+                    el.setAttribute('data-time-converted', 'true');
+                }
+            });
         });
     }
 
-    // Initial Run
     setTimeout(updateTimestamps, 1500);
 
-    // If it's a bulletin board page, it can also be dynamically detected
-    const observer = new MutationObserver(() => {
-        updateTimestamps();
+    const observer = new MutationObserver((mutations) => {
+        let shouldUpdate = false;
+        mutations.forEach(mutation => {
+            if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+                shouldUpdate = true;
+            }
+        });
+
+        if (shouldUpdate) {
+            setTimeout(updateTimestamps, 100);
+        }
     });
+
     observer.observe(document.body, {
         childList: true,
         subtree: true
+    });
+
+    window.addEventListener('focus', () => {
+        setTimeout(updateTimestamps, 500);
     });
 })();
